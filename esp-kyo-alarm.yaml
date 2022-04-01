@@ -1,11 +1,11 @@
 substitutions:
   name: esp-kyo-alarm-generic
   friendly_name: "ESP KYO Alarm Generic"
-
+  
 esphome:
   name: ${name}
   platform: ESP8266
-  board: d1_mini
+  board: d1_mini_pro
   comment: "ESP KYO alarm integration"
   libraries:
     - "td-er/RABurton ESP8266 Mutex @ ^1.0.2"
@@ -25,6 +25,7 @@ globals:
     restore_value: no
     initial_value: '0x3'
 
+
 # Disable UART logging
 logger:
   baud_rate: 0
@@ -32,8 +33,7 @@ logger:
 
 # Encrypted native API
 api:
-  encryption:
-    key: !secret api_encryption_key
+#  password: !secret api_key
 
 # Enable Over-the-Air flash
 ota:
@@ -43,7 +43,7 @@ ota:
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
-
+    
 # Reference time
 time:
   - platform: homeassistant
@@ -80,7 +80,6 @@ custom_component:
       return {kyo};
     components:
       - id: kyo
-
 # Text sensors
 text_sensor:
   # Alarm status
@@ -129,20 +128,45 @@ binary_sensor:
     lambda: |-
       KyoAlarmComponent* k = (KyoAlarmComponent*) kyo;
       return {&k->zoneSensor[0], &k->zoneSensor[1],
-              &k->zoneSensor[2], &k->zoneSensor[3]};
+              &k->zoneSensor[2], &k->zoneSensor[3],
+              &k->zoneSensor[4], &k->zoneSensor[5],
+              &k->zoneSensor[6], &k->zoneSensor[7],
+              &k->zoneSensor[8], &k->zoneSensor[9],
+              &k->zoneSensor[10]};
     binary_sensors:
       - id: kyo_zone1
-        name: "Zone 1"
-        device_class: "motion"
-      - id: kyo_zone2
-        name: "Zone 2"
-        device_class: "window"
-      - id: kyo_zone3
-        name: "Zone 3"
+        name: "Ingresso"
         device_class: "door"
+      - id: kyo_zone2
+        name: "Radar Sala"
+        device_class: "motion"
+      - id: kyo_zone3
+        name: "Radar Garage"
+        device_class: "motion"
       - id: kyo_zone4
-        name: "Zone 4"
-        device_class: "garage_door"
+        name: "Finestra Cucina"
+        device_class: "window"
+      - id: kyo_zone5
+        name: "Finestra Bagno"
+        device_class: "window"
+      - id: kyo_zone6
+        name: "Finestra Cameretta"
+        device_class: "window"
+      - id: kyo_zone7
+        name: "Finestra Matrimoniale"
+        device_class: "window"
+      - id: kyo_zone8
+        name: "Finestra Sala"
+        device_class: "window"
+      - id: kyo_zone9
+        name: "Ripetitore"
+        device_class: "motion"
+      - id: kyo_zone10
+        name: "Esterno Dietro"
+        device_class: "motion"
+      - id: kyo_zone11
+        name: "Esterno Avanti"
+        device_class: "motion"
 
   # Warnings
   # 00000001 - Mains failure
@@ -237,7 +261,6 @@ binary_sensor:
     device_class: "tamper"
     lambda: |-
       return((static_cast<uint8_t>(id(kyo_tamper).state) & 0x80) > 0);
-
 # Switches
 switch:
 # Zones bypass switch
@@ -252,22 +275,57 @@ switch:
     return {((KyoAlarmComponent*) kyo)->zoneSwitches};
   switches:
     - id: kyo_zone1_sw
-      name: "Zone 1"
-      icon: "mdi:motion-sensor"
+      name: "Ingresso"
+      icon: "mdi:leak"
       entity_category: "config"
       inverted: true
     - id: kyo_zone2_sw
-      name: "Zone 2"
-      icon: "mdi:leak"
+      name: "Radar Sala"
+      icon: "mdi:motion-sensor"
       entity_category: "config"
       inverted: true
     - id: kyo_zone3_sw
-      name: "Zone 3"
-      icon: "mdi:leak"
+      name: "Radar Garage"
+      icon: "mdi:motion-sensor"
       entity_category: "config"
       inverted: true
     - id: kyo_zone4_sw
-      name: "Zone 3"
+      name: "Finestra Cucina"
       icon: "mdi:leak"
       entity_category: "config"
       inverted: true
+    - id: kyo_zone5_sw
+      name: "Finestra Bagno"
+      icon: "mdi:leak"
+      entity_category: "config"
+      inverted: true
+    - id: kyo_zone6_sw
+      name: "Finestra Cameretta"
+      icon: "mdi:leak"
+      entity_category: "config"
+      inverted: true
+    - id: kyo_zone7_sw
+      name: "Finestra Matrimoniale"
+      icon: "mdi:leak"
+      entity_category: "config"
+      inverted: true
+    - id: kyo_zone8_sw
+      name: "Finestra sala"
+      icon: "mdi:leak"
+      entity_category: "config"
+      inverted: true
+    - id: kyo_zone9_sw
+      name: "Ripetitore"
+      icon: "mdi:leak"
+      entity_category: "config"
+      inverted: true
+    - id: kyo_zone10_sw
+      name: "Esterno Dietro"
+      icon: "mdi:motion-sensor"
+      entity_category: "config"
+      inverted: true
+    - id: kyo_zone11_sw
+      name: "Esterno Avanti"
+      icon: "mdi:motion-sensor"
+      entity_category: "config"
+      inverted: true    
