@@ -1,6 +1,6 @@
 substitutions:
-  name: esp-kyo-alarm-generic
-  friendly_name: "ESP KYO Alarm Generic"
+  name: esp-kyo-alarm
+  friendly_name: "ESP KYO Alarm"
   
 esphome:
   name: ${name}
@@ -18,32 +18,35 @@ globals:
   - id: armed_home
     type: uint8_t
     restore_value: no
-    initial_value: '0x1'
+    initial_value: '0x79'
   # Arm away partitions (bitfield) as configured in alarm
   - id: armed_away
     type: uint8_t
     restore_value: no
-    initial_value: '0x3'
+    initial_value: '0x7F'
 
 
-# Disable UART logging
+# Enable logging
 logger:
-  baud_rate: 0
-  level: INFO
-
-# Encrypted native API
+  level: VERBOSE
+  baud_rate: 9600
+  
+# Enable Home Assistant API
 api:
-#  password: !secret api_key
+  password: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiI0NTcwMGUzZWFmMzY0ZjJjOWY0ODUyZmY2N2ZjZTRiMCIsImlhdCI6MTY0ODgyMzgxNywiZXhwIjoxOTY0MTgzODE3fQ.BSyzrxk52kFDt_8QbTXesUXdZwFNCfpK6_UB_awgKDc"
 
-# Enable Over-the-Air flash
 ota:
-  password: !secret ota_password
+  password: "d365c91e4f3c7987bd7a5e82baf7d680"
 
-# Enable WiFi, keep captive portal disabled
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
-    
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Esp-Kyo-Alarm Fallback Hotspot"
+    password: "m7x57GpCKOik"
+
 # Reference time
 time:
   - platform: homeassistant
@@ -328,4 +331,4 @@ switch:
       name: "Esterno Avanti"
       icon: "mdi:motion-sensor"
       entity_category: "config"
-      inverted: true    
+      inverted: true
