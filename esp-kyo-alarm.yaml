@@ -33,10 +33,10 @@ logger:
   
 # Enable Home Assistant API
 api:
-  password: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiI0NTcwMGUzZWFmMzY0ZjJjOWY0ODUyZmY2N2ZjZTRiMCIsImlhdCI6MTY0ODgyMzgxNywiZXhwIjoxOTY0MTgzODE3fQ.BSyzrxk52kFDt_8QbTXesUXdZwFNCfpK6_UB_awgKDc"
+  password: "***"
 
 ota:
-  password: "d365c91e4f3c7987bd7a5e82baf7d680"
+  password: "***"
 
 wifi:
   ssid: !secret wifi_ssid
@@ -45,7 +45,7 @@ wifi:
   # Enable fallback hotspot (captive portal) in case wifi connection fails
   ap:
     ssid: "Esp-Kyo-Alarm Fallback Hotspot"
-    password: "m7x57GpCKOik"
+    password: "***"
 
 # Reference time
 time:
