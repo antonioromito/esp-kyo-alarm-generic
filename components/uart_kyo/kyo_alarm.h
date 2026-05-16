@@ -17,8 +17,25 @@
 */
 
 #include <sstream>
-#include "esphome.h"
+#include "esphome/core/component.h"
+#include "esphome/core/helpers.h"
+#include "esphome/core/log.h"
+#include "esphome/core/time.h"
+#include "esphome/components/api/custom_api_device.h"
+#include "esphome/components/binary_sensor/binary_sensor.h"
+#include "esphome/components/sensor/sensor.h"
+#include "esphome/components/text_sensor/text_sensor.h"
+#include "esphome/components/globals/globals_component.h"
+#include "esphome/components/uart/uart.h"
 #include "esp8266_mutex.h"
+
+using esphome::text_sensor::TextSensor;
+using esphome::binary_sensor::BinarySensor;
+using esphome::sensor::Sensor;
+
+class KyoAlarmComponent;
+
+extern KyoAlarmComponent *global_kyo;
 
 #define LOG_TAG "esp-key-alarm"
 
@@ -47,7 +64,9 @@
  * uint8_t cksum % 0xff
  */
 
-class KyoAlarmComponent : public esphome::PollingComponent, public uart::UARTDevice, public api::CustomAPIDevice {
+class KyoAlarmComponent : public esphome::PollingComponent,
+                          public esphome::uart::UARTDevice,
+                          public esphome::api::CustomAPIDevice {
     public:
         TextSensor *alarmStatusSensor = new TextSensor();
         TextSensor *modelSensor = new TextSensor();
@@ -56,13 +75,18 @@ class KyoAlarmComponent : public esphome::PollingComponent, public uart::UARTDev
         BinarySensor *zTamperSensor = new BinarySensor[KYO_MAX_ZONES];
         Sensor *warningSensor = new Sensor();
         Sensor *tamperSensor = new Sensor();
-        std::vector<switch_::Switch *> zoneSwitches;
 
-        KyoAlarmComponent(UARTComponent *parent) : UARTDevice(parent) {}
+        KyoAlarmComponent() = default;
+
+        void set_partition_globals(esphome::globals::GlobalsComponent<uint8_t> *home,
+                                   esphome::globals::GlobalsComponent<uint8_t> *away) {
+            this->armed_home_ptr_ = home;
+            this->armed_away_ptr_ = away;
+        }
 
         void setup() override {
+            global_kyo = this;
             set_update_interval(UPDATE_INT_MS);
-            set_setup_priority(setup_priority::AFTER_CONNECTION);
 
             // Create UART mutex
             CreateMutux(&uartMutex);
@@ -141,7 +165,7 @@ class KyoAlarmComponent : public esphome::PollingComponent, public uart::UARTDev
             }
         }
 
-        void onTimeSync(esphome::time::ESPTime time) {
+        void onTimeSync(esphome::ESPTime time) {
             std::vector<uint8_t> request = cmdSetTime;
             std::vector<uint8_t> requestData = cmdSetTimeData;
             std::vector<uint8_t> requestClose = cmdClose;
@@ -179,6 +203,9 @@ class KyoAlarmComponent : public esphome::PollingComponent, public uart::UARTDev
         }
 
     private:
+        esphome::globals::GlobalsComponent<uint8_t> *armed_home_ptr_{nullptr};
+        esphome::globals::GlobalsComponent<uint8_t> *armed_away_ptr_{nullptr};
+
         const std::vector<uint8_t> cmdGetAlarmInfo = {0xf0, 0x00, 0x00, 0x0b, 0x00};
         const size_t RPL_GET_ALARM_INFO_SIZE = 13;
 
@@ -282,12 +309,12 @@ class KyoAlarmComponent : public esphome::PollingComponent, public uart::UARTDev
                 // Build request data
                 if (action == "arm_home") {
                     // Arm home partitions request
-                    requestData[0] = armed_home->value() & partsList;
+                    requestData[0] = armed_home_ptr_->value() & partsList;
                     alarmStatusSensor->publish_state("arming");
                     alarmStatus = AlarmStatus::ARMING;
                 } else if (action == "arm_away") {
                     // Arm away partitions request
-                    requestData[0] = armed_away->value() & partsList;
+                    requestData[0] = armed_away_ptr_->value() & partsList;
                     alarmStatusSensor->publish_state("arming");
                     alarmStatus = AlarmStatus::ARMING;
                 } else if (action == "disarm") {
@@ -369,8 +396,8 @@ class KyoAlarmComponent : public esphome::PollingComponent, public uart::UARTDev
                 partsList = reply[1];
 
                 ESP_LOGCONFIG(LOG_TAG, "Partitions list request completed [" BYTE_TO_BINARY_PATTERN "]", BYTE_TO_BINARY(partsList));
-                ESP_LOGCONFIG(LOG_TAG, "Arm home partitions [" BYTE_TO_BINARY_PATTERN "]", BYTE_TO_BINARY(armed_home->value() & partsList));
-                ESP_LOGCONFIG(LOG_TAG, "Arm away partitions [" BYTE_TO_BINARY_PATTERN "]", BYTE_TO_BINARY(armed_away->value() & partsList));
+                ESP_LOGCONFIG(LOG_TAG, "Arm home partitions [" BYTE_TO_BINARY_PATTERN "]", BYTE_TO_BINARY(armed_home_ptr_->value() & partsList));
+                ESP_LOGCONFIG(LOG_TAG, "Arm away partitions [" BYTE_TO_BINARY_PATTERN "]", BYTE_TO_BINARY(armed_away_ptr_->value() & partsList));
                 return (true);
             }
 
@@ -447,24 +474,19 @@ class KyoAlarmComponent : public esphome::PollingComponent, public uart::UARTDev
                         // All partitions are disarmed
                         alarmStatusSensor->publish_state("disarmed");
                         alarmStatus = AlarmStatus::DISARMED;
-                    } else if ((armed == (armed_home->value() & partsList)) && (alarmStatus != AlarmStatus::ARMED_HOME)) {
+                    } else if ((armed == (armed_home_ptr_->value() & partsList)) && (alarmStatus != AlarmStatus::ARMED_HOME)) {
                         // All partitions are armed home
                         alarmStatusSensor->publish_state("armed_home");
                         alarmStatus = AlarmStatus::ARMED_HOME;
-                    } else if ((armed == (armed_away->value() & partsList)) && (alarmStatus != AlarmStatus::ARMED_AWAY)) {
+                    } else if ((armed == (armed_away_ptr_->value() & partsList)) && (alarmStatus != AlarmStatus::ARMED_AWAY)) {
                         // All partitions are armed away
                         alarmStatusSensor->publish_state("armed_away");
                         alarmStatus = AlarmStatus::ARMED_AWAY;
                     }
                 }
 
-                // Parse bypassed zones
-                info = (reply[7] << 24) | (reply[8] << 16) | (reply[9] << 8) | reply[10];
-                for (int i = 0; i < KYO_MAX_ZONES; i++) {
-                    zoneSwitches[i]->publish_state((info >> i) & 0x01);
-                }
-
                 // TODO: Publish also:
+                //       - Bypassed zones
                 //       - Outputs status
                 //       - Alarm memory zones
                 //       - Tamper memory zones
@@ -605,21 +627,4 @@ class KyoAlarmComponent : public esphome::PollingComponent, public uart::UARTDev
         }
 };
 
-class KyoZoneSwitch : public esphome::Component, public switch_::Switch {
-    public:
-        KyoZoneSwitch(int id) {
-            zoneId = id;
-        }
-
-        void setup() override {
-        }
-
-        void write_state(bool state) override {
-            if (zoneId < KYO_MAX_ZONES) {
-                ((KyoAlarmComponent*) kyo)->bypassZone(zoneId, state);
-            }
-        }
-
-    private:
-        uint32_t zoneId;
-};
+KyoAlarmComponent *global_kyo = nullptr;

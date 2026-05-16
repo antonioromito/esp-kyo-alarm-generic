@@ -1,0 +1,12 @@
+# ESPHome build output
+.esphome/
+
+# Local secrets (WiFi, OTA, API keys)
+secrets.yaml
+
+# Documentation assets (not used by firmware)
+images/
+
+# Python
+__pycache__/
+*.py[cod]
